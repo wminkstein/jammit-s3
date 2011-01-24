@@ -53,21 +53,14 @@ module Jammit
 
     # Returns a token used to version assets
     # Use RAILS_ASSET_ID var (as already used by Rails) if defined
-    # or check heroku's COMMIT_HASH (undocumented) var,
     # or return an empty string
     def assets_version
-      ENV["RAILS_ASSET_ID"] || ENV['COMMIT_HASH'] || try_git_log_command || ''
+      ENV["RAILS_ASSET_ID"] || ''
     end
 
     # Force to use a specific token to version assets
     def assets_version=(value)
       ENV["RAILS_ASSET_ID"] = value
-    end
-
-    def try_git_log_command
-      # should work on local dev environments
-      # and during packaging/uploading of assets with jammit-s3
-      `git log --pretty=format:'%h' -1`.chomp
     end
   end
 end
