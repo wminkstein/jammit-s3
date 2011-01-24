@@ -16,12 +16,12 @@ module Jammit
       rake_tasks do
         load "tasks/jammit-s3.rake"
       end
-      if Jammit.package_assets
-        config.before_configuration do
-          # Set asset_host and asset_path used in Rails AssetTagHelper
-          # Since the block is executed before_configuration, it is possible
-          # to override these values inside config/production.rb.
-          config.action_controller.asset_host = self.asset_host
+      config.before_configuration do
+        # Set asset_host and asset_path used in ActionView::Helpers::AssetTagHelper.
+        # Since the block is executed before_configuration, it is possible
+        # to override these values inside config/production.rb.
+        config.action_controller.asset_host = self.asset_host
+        if self.version_assets?
           config.action_controller.asset_path = Proc.new do |source|
             self.versioned_path(source)
           end
