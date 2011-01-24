@@ -43,34 +43,11 @@ module Jammit
     # from monkey-patched Jammit::Compressor and from S3Uploader
     # to calculate asset paths
     def versioned_path(path)
+      return path unless self.version_assets?
+      return path if path.empty? || Pathname.new(path).relative?
       version = assets_version
-      versioned_path = prepend_path_with_version(path, version)
-      puts "Changing #{path} to #{versioned_path}" unless path == versioned_path
-      #version_file_before_extension(path, version)  # uncomment this for a different strategy
-      versioned_path
-    end
-
-    # Return path with asset_version inserted before the extension.
-    # ==== Examples
-    #   assets_version = 1
-    #   versioned_path("images/logo.png") #=> "images/logo.1.png"
-    def version_file_before_extension(path, version)
-      ext = File.extname(path)
-      path_without_ext = path.chomp(ext)
-      version = ".#{version}" unless (version.nil? || version.empty?)
-      "#{path_without_ext}#{version}#{ext}"
-    end
-
-    # Called from a proc attached to config.action_controller.asset_path
-    # Return path with asset_version inserted before the path.
-    # ==== Examples
-    #   assets_version = 1
-    #   versioned_path("/images/logo.png") #=> "/1/images/logo.png"
-    def prepend_path_with_version(path, version)
-      return path if version.nil? || version.empty? || path.empty?
-      # if rooted path also return rooted path, if relative=> return relative
-      version = path[0] == ?/ ? "/#{version}" : "#{version}/"
-      "#{version}#{path}"
+      return path if version.nil? || version.empty?
+      "/#{version}#{path}"
     end
 
     # Returns a token used to version assets
