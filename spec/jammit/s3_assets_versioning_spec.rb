@@ -59,10 +59,14 @@ describe TestS3AssetsVersioning do
       end
 
       it "should return paths for use in S3Uploader" do
-        # Incoming paths are expected to be rooted, see S3Uploader
-        subject.versioned_path("/").should == "/v1/"
-        subject.versioned_path("/file.ext").should == "/v1/file.ext"
-        subject.versioned_path("/dir/file.ext").should == "/v1/dir/file.ext"
+        # Incoming paths are expected to be relative and yet be versioned
+        # with a relative url as well
+        subject.versioned_path("", true).should == ""
+        subject.versioned_path("file", true).should == "v1/file"
+        subject.versioned_path("file.ext", true).should == "v1/file.ext"
+        subject.versioned_path("dir/file.ext", true).should == "v1/dir/file.ext"
+        subject.versioned_path("./dir/file.ext", true).should == "v1/./dir/file.ext"
+        subject.versioned_path("../dir/file.ext", true).should == "v1/../dir/file.ext"
       end
 
       it "should return paths for use from Jammit::Compressor" do

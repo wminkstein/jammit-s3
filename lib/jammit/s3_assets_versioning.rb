@@ -42,12 +42,13 @@ module Jammit
     # Called from a proc attached to config.action_controller.asset_path,
     # from monkey-patched Jammit::Compressor and from S3Uploader
     # to calculate asset paths
-    def versioned_path(path)
+    def versioned_path(path, version_relative_paths=false)
       return path unless self.version_assets?
-      return path if path.empty? || Pathname.new(path).relative?
+      return path if path.empty? || (Pathname.new(path).relative? && !version_relative_paths)
       version = assets_version
       return path if version.nil? || version.empty?
-      "/#{version}#{path}"
+      version = Pathname.new(path).relative? ? "#{version}/" : "/#{version}"
+      "#{version}#{path}"
     end
 
     # Returns a token used to version assets

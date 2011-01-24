@@ -49,6 +49,7 @@ module Jammit
       log "#{ASSET_ROOT}/#{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
+        # note: remote path should be relative
         remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\//, "")
 
         use_gzip = false
@@ -59,7 +60,7 @@ module Jammit
           remote_path = remote_path.gsub(/\.gz$/, "")
         end
 
-        remote_path = versioned_path(remote_path)
+        remote_path = versioned_path(remote_path, true)
 
         log "pushing file to s3: #{local_path}=>#{remote_path}"
 
