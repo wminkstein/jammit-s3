@@ -29,6 +29,12 @@ module Jammit
       Jammit.package_assets && Jammit.configuration[:s3_cloudfront_host]
     end
 
+    # Separate asset host is used when Jammit-s3 gem is initialized and
+    # package_assets is on for this environment (off for dev unless always is in the config)
+    def separate_asset_host?
+      Jammit.package_assets
+    end
+
     # By default returns the host of Amazon bucket, or, if configured,
     # the value of s3_cloudfront_host property from config/assets.yml.
     # Returned value is set directly to config.action_controller.asset_host.
