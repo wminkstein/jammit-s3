@@ -2,6 +2,8 @@ require 'mimemagic'
 
 module Jammit
   class S3Uploader
+    include Jammit::S3AssetsVersioning
+
     def initialize(options = {})
       @bucket = options[:bucket]
       unless @bucket
@@ -47,6 +49,7 @@ module Jammit
       log "#{ASSET_ROOT}/#{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
+        # note: remote path should be relative
         remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\//, "")
 
         use_gzip = false
@@ -57,13 +60,17 @@ module Jammit
           remote_path = remote_path.gsub(/\.gz$/, "")
         end
 
-        log "pushing file to s3: #{remote_path}"
+        remote_path = versioned_path(remote_path, true)
+
+        log "pushing file to s3: #{local_path}=>#{remote_path}"
 
         # save to s3
         new_object = @bucket.objects.build(remote_path)
         new_object.cache_control = @cache_control if @cache_control
         new_object.content_type = MimeMagic.by_path(remote_path)
         new_object.content = open(local_path)
+        # TODO: would be great to send all objects gzipped, even those included in s3_upload_files list
+        # Does the upload request content_encoding determine amazon's response content_encoding?
         new_object.content_encoding = "gzip" if use_gzip
         new_object.acl = @acl if @acl
         new_object.save
