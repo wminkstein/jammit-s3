@@ -26,23 +26,47 @@ module Jammit
 
     # Returns true if need to apply filename/path versioning technique
     def version_assets?
-      Jammit.package_assets && Jammit.configuration[:s3_cloudfront_host]
+      Jammit.package_assets && Jammit.configuration[:cloudfront_domain]
     end
 
     # Separate asset host is used when Jammit-s3 gem is initialized and
     # package_assets is on for this environment (off for dev unless always is in the config)
-    def separate_asset_host?
+    def use_s3_asset_host?
       Jammit.package_assets
     end
 
     # By default returns the host of Amazon bucket, or, if configured,
-    # the value of s3_cloudfront_host property from config/assets.yml.
+    # the value of cloudfront_domain property from config/assets.yml.
     # Returned value is set directly to config.action_controller.asset_host.
     # For more complex needs set the value of config.action_controller.asset_host
     # to something else (like a Proc) inside config/environments/production.rb
-    def asset_host
-      host = Jammit.configuration[:s3_cloudfront_host]
-      host.present? ? host : "#{Jammit.configuration[:s3_bucket]}.s3.amazonaws.com"
+    def asset_host_proc
+      # http://docs.amazonwebservices.com/AmazonCloudFront/latest/DeveloperGuide/index.html?CNAMEs.html
+      # CloudFront doesn't support CNAMEs with HTTPS, HTTPS needs to be served from cloudfront_domain.
+      # If content is requested over HTTPS using CNAMEs, your end users' browsers will display the warning:
+      # This page contains both secure and non-secure items. To prevent this message from appearing, don't use
+      # CNAMEs with CloudFront HTTPS distributions.
+      if Jammit.configuration[:use_cloudfront] && Jammit.configuration[:cloudfront_cname].present? && Jammit.configuration[:cloudfront_domain].present?
+        asset_hostname = Jammit.configuration[:cloudfront_cname]
+        asset_hostname_ssl = Jammit.configuration[:cloudfront_domain]
+      elsif Jammit.configuration[:use_cloudfront] && Jammit.configuration[:cloudfront_domain].present?
+        asset_hostname = asset_hostname_ssl = Jammit.configuration[:cloudfront_domain]
+      else
+        asset_hostname = asset_hostname_ssl = "#{Jammit.configuration[:s3_bucket]}.s3.amazonaws.com"
+      end
+
+      Proc.new do |source, request|
+        if Jammit.configuration.has_key?(:ssl)
+          protocol = Jammit.configuration[:ssl] ? "https://" : "http://"
+        else
+          protocol = request.protocol
+        end
+        if request.protocol == "https://"
+          "#{protocol}#{asset_hostname_ssl}"
+        else
+          "#{protocol}#{asset_hostname}"
+        end
+      end
     end
 
     # Called from a proc attached to config.action_controller.asset_path,
