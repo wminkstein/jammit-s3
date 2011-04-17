@@ -78,69 +78,83 @@ Valid permission options are:
 
 `authenticated_read`: - Owner gets FULL_CONTROL, and any principal authenticated as a registered Amazon S3 user is granted READ access.
 
-## Using CloudFront
+## Using Amazon CloudFront (CDN)
 
-<<<<<<< HEAD
-For this to work you need to make sure you have the CloudFront enabled 
-via you Amazon acccount page. Go here: http://aws.amazon.com/cloudfront/ and click "Sign Up"
+For the following to work you need to make sure you have the CloudFront enabled
+for your bucket via you Amazon acccount page. Go here: http://aws.amazon.com/cloudfront/ and click "Sign Up"
 
-To use Amazon's CloudFront service with jammit-s3, three extra steps are needed (see
-below). The complication is that CloudFront caching does not respect Rails cache busting
+### CloudFront subtleties
+
+CloudFront caching does not respect Rails cache busting
 technique of appending a query string to each asset url. So when you
 roll out a new build with that new amazing logo, CloudFront will treat
 the url path /logo.png?123456 and /logo.png?56789 as the same file and
 serve it from the cache without re-fetching it from the origin server.
-=======
-For this to work you need to make sure you have the CloudFront enabled via you Amazon acccount page. Go here: http://aws.amazon.com/cloudfront/ and click "Sign Up"
 
-To use CloudFront, simply add the following settings to config/assets.yml:
+To work around this issue jammit-s3 implements two strategies how to let CloudFront
+know your files are updated: invalidation and asset versioning.
 
-    use_cloudfront: on
+#### Invalidation
+
+To configure jammit-s3 to use invalidation for CloudFront, simply add the following settings to config/assets.yml:
+
+    use_cloudfront: invalidate
     cloudfront_dist_id: XXXXXXXXXXXXXX
     cloudfront_domain: xyzxyxyz.cloudfront.net
+    cloudfront_cname: static.yourdomain.com # <- this is optional, and CF distribution needs to be configured for CNAMEs
 
 Please note that cloudfront_dist_id is not the same as the CloudFront domain
 name. Inside CloudFront management console select the
 distribution, and you will see Distribution ID and Domain Name values.
->>>>>>> invalidation
 
-To work around this issue, Jammit-s3 inserts a cache busting token right
+There is nothing special to so at deployment time (except running jammit-s3 of course).
+
+When configured for invalidation jammit-s3 will only upload the asset files if they are new or
+different from the previous version in S3 bucket. For changed files jammit-s3 will issue
+an invalidation request to Amazon.
+
+#### Known issues with CloudFront invalidation
+
+1. It may reportedly take up to 15 minutes to invalidate all the CloudFront
+caches around the globe (and Amazon charges for more than a certain number
+of invalidations per month).
+
+2. It's non-atomic from the perspective of the end-user: They may get an
+older version of the site with a newer version of the JavaScript and CSS, or
+vice versa.
+
+3. It doesn't play nicely with aggressive HTTP caching. For example, once you
+serve a script or a stylesheet, you would like it to be cached indefinitely
+with no more round trips to see whether it is valid.
+
+
+#### Asset Versioning
+
+To configure jammit-s3 to use asset versioning for CloudFront, simply add the following settings to config/assets.yml:
+
+    use_cloudfront: version
+    cloudfront_dist_id: XXXXXXXXXXXXXX  # <- optional, not used for versioning
+    cloudfront_domain: xyzxyxyz.cloudfront.net
+    cloudfront_cname: static.yourdomain.com # <- this is optional, and CF distribution needs to be configured for CNAMEs
+
+When configured for asset versioning, jammit-s3 inserts a cache busting token right
 in the asset path, causing browsers and cacheing proxies to refetch it
-from the origin server. The value if the cache busting token is read
+from the origin server. The value of the cache busting token is read
 from RAILS_ASSET_ID environment variable, and inserted right at the root
 of the paths, e.g. =image_tag "logo.png" will generate an image tag with
 href to http://xxxxx.cloudfront.net/a4f2c23/logo.png, where a4f2c23 is
 the value of ENV['RAILS_ASSET_ID'] on your application server.
 
-<<<<<<< HEAD
 It is up to you to come up with a strategy which value to use as
 RAILS_ASSET_ID, the git commit hash seems like a good option, but
 anything relatively unique, like a timestamp will do.
 
-So to enable CloudFront:
-1) set s3_cloudfront_host in assets.yml
-2) Run jammit-s3 with RAILS_ASSET_ID env var set
-3) Set RAILS_ASSET_ID on your production environment
+#### Deployment
 
-### Setting s3_cloudfront_host
+1. Run jammit-s3 with RAILS_ASSET_ID env var set
+2. Set RAILS_ASSET_ID env var on your production environment
 
-Simply add s3_cloudfront_host option to the config file with the value 
-of your CloudFront distribution. If packaging of assets is enabled for 
-an environment (see package_assets config option of jammit) then all asset 
-paths generated by Rails will have your distribution as the domain.
-
-    s3_cloudfront_host: di8snu3y5lwja.cloudfront.net
-
-s3_cloudfront_host can also support %d in the domain name, to use
-multiple (up to 4) hosts. See Rails documentation for
-ActionView::Helpers::AssetTagHelper.asset_host.
-
-To use with multiple environments (production, staging, demo) set it to 
-an environment variable:
-
-    s3_cloudfront_host: <%= ENV['S3_CLOUDFRONT_HOST'] %>    
-
-### Run jammit-s3 with RAILS_ASSET_ID set 
+#### Run jammit-s3 with RAILS_ASSET_ID set
 
     $ RAILS_ASSET_ID=20110120051234 jammit-s3
     ...
@@ -158,12 +172,22 @@ bucket defined in config, under 20110120051234 directory. You may want
 to clean up directory for older releases releases if you release quite
 often.
 
-### Set RAILS_ASSET_ID in production environment
+#### Set RAILS_ASSET_ID in production environment
 
-This totally depends on the enviroment and deployment tools you use. On
-heroku.com run:
+This totally depends on the enviroment and deployment tools you use.
+For example on heroku.com run:
 
     $ heroku config:add RAILS_ASSET_ID=20110120051234
+
+#### Pros and Cons for asset versioning
+
+Pro: It assures that all files will match up, and the user will always get matched HTML/JS/CSS files.
+
+Pro: Aggressive Cache-Control can be used
+
+Con: Uploading of assets may take quite a bit of time and slow down your deployments.
+
+Con: A bit more involved deployment
 
 ## Cache-Control setting
 
@@ -178,26 +202,6 @@ assets.yml:
 
 This will cause Cache-Control response header to be set to 1 year
 expiration.
-=======
-### Known issues with CloudFront invalidation
-
-1. It may reportedly take up to 15 minutes to invalidate all the CloudFront
-caches around the globe (and Amazon charges for more than a certain number
-of invalidations per month).
-
-2. It's non-atomic from the perspective of the end-user: They may get an
-older version of the site with a newer version of the JavaScript and CSS, or
-vice versa.
-
-3. It doesn't play nicely with aggressive HTTP caching. For example, once I
-serve a script or a stylesheet, I would like it to be cached indefinitely
-with no more round trips to see whether it is valid.
-
-Given these constraints, there's still an important need for some kind of
-content-based hashing. Done right, this assures that all files can be cached
-indefinitely, and the user will always get matched HTML/JS/CSS files. (This currently
-is in the works).
->>>>>>> invalidation
 
 ## Bugs / Feature Requests
 
