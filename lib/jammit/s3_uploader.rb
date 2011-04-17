@@ -11,7 +11,7 @@ module Jammit
     include AWS::S3
     include Jammit::S3AssetsVersioning
 
-    def initialize(options = {})
+    def initialize(options = { })
       @bucket = options[:bucket]
       unless @bucket
         @bucket_name = options[:bucket_name] || Jammit.configuration[:s3_bucket]
@@ -23,7 +23,7 @@ module Jammit
         @acl = options[:acl] || Jammit.configuration[:s3_permission] || :public_read
 
         @bucket = find_or_create_bucket
-        if Jammit.configuration[:use_cloudfront]
+        if use_invalidation?
           @changed_files = []
           @cloudfront_dist_id = options[:cloudfront_dist_id] || Jammit.configuration[:cloudfront_dist_id]
         end
@@ -55,10 +55,7 @@ module Jammit
         upload_from_glob(glob)
       end
 
-      if Jammit.configuration[:use_cloudfront] && !@changed_files.empty?
-        log "invalidating cloudfront cache for changed files"
-        invalidate_cache(@changed_files)
-      end
+      invalidate_cache(@changed_files) if use_invalidation?
     end
 
     def upload_from_glob(glob)
@@ -76,54 +73,45 @@ module Jammit
           use_gzip = true
           remote_path = remote_path.gsub(/\.gz$/, "")
         end
-        
-        # check if the file already exists on s3
-        begin
-          obj = @bucket.objects.find_first(remote_path)
-        rescue
-          obj = nil
-        end
 
-<<<<<<< HEAD
-        remote_path = versioned_path(remote_path, true)
-
-        log "pushing file to s3: #{local_path}=>#{remote_path}"
-
-        # save to s3
-        metadata = {}
-        new_object = @bucket.new_object
-        new_object.key = remote_path
-        new_object.value = open(local_path)
-        metadata[:cache_control] = @cache_control if @cache_control
-        metadata[:expires] = @expires if @expires
-        metadata[:content_encoding] = "gzip" if use_gzip
-        new_object.store(metadata)
-        new_object.acl.grants << ACL::Grant.grant(@acl.to_sym)
-        new_object.acl(new_object.acl)
-=======
-        # if the object does not exist, or if the MD5 Hash / etag of the 
-        # file has changed, upload it
-        if !obj || (obj.etag != Digest::MD5.hexdigest(File.read(local_path)))
-
-          # save to s3
-          new_object = @bucket.objects.build(remote_path)
-          new_object.cache_control = @cache_control if @cache_control
-          new_object.content_type = MimeMagic.by_path(remote_path)
-          new_object.content = open(local_path)
-          new_object.content_encoding = "gzip" if use_gzip
-          new_object.acl = @acl if @acl
-          log "pushing file to s3: #{remote_path}"
-          new_object.save
-
-          if Jammit.configuration[:use_cloudfront] && obj
-            log "File changed and will be invalidated in cloudfront: #{remote_path}"
-            @changed_files << remote_path
+        if use_versioned_assets?  # upload ALL files with version prepended
+          remote_path = versioned_path(remote_path, true)
+          upload_file local_path, remote_path, use_gzip
+        else # selectively upload files if local version is different
+          # check if the file already exists on s3
+          begin
+            obj = @bucket.objects.find_first(remote_path)
+          rescue
+            obj = nil
           end
-        else
-          log "file has not changed: #{remote_path}"
+
+          # if the object does not exist, or if the MD5 Hash / etag of the
+          # file has changed, upload it
+          if !obj || (obj.etag != Digest::MD5.hexdigest(File.read(local_path)))
+
+            upload_file local_path, remote_path, use_gzip
+
+            if use_invalidation? && obj
+              log "File changed and will be invalidated in cloudfront: #{remote_path}"
+              @changed_files << remote_path
+            end
+          else
+            log "file has not changed: #{remote_path}"
+          end
         end
->>>>>>> invalidation
       end
+    end
+
+    def upload_file(local_path, remote_path, use_gzip)
+      # save to s3
+      new_object = @bucket.objects.build(remote_path)
+      new_object.cache_control = @cache_control if @cache_control
+      new_object.content_type = MimeMagic.by_path(remote_path)
+      new_object.content = open(local_path)
+      new_object.content_encoding = "gzip" if use_gzip
+      new_object.acl = @acl if @acl
+      log "pushing file to s3: #{local_path}=>#{remote_path}"
+      new_object.save
     end
 
     def find_or_create_bucket
@@ -138,8 +126,10 @@ module Jammit
         Bucket.find(@bucket_name)
       end
     end
-    
+
     def invalidate_cache(files)
+      return if files.empty?
+      log "invalidating cloudfront cache for changed files"
       paths = ""
       files.each do |key|
         log "adding /#{key} to list of invalidation requests"

@@ -29,6 +29,10 @@ module Jammit
       Jammit.package_assets && Jammit.configuration[:use_cloudfront]=="version"
     end
 
+    def use_invalidation?
+      Jammit.package_assets && Jammit.configuration[:use_cloudfront]=="invalidate"
+    end
+
     # Separate asset host is used when Jammit-s3 gem is initialized and
     # package_assets is on for this environment (off for dev unless always is in the config)
     def use_s3_asset_host?
