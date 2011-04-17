@@ -25,8 +25,8 @@ module Jammit
     #     javascripts/...
 
     # Returns true if need to apply filename/path versioning technique
-    def version_assets?
-      Jammit.package_assets && Jammit.configuration[:cloudfront_domain]
+    def use_versioned_assets?
+      Jammit.package_assets && Jammit.configuration[:use_cloudfront]=="version"
     end
 
     # Separate asset host is used when Jammit-s3 gem is initialized and
@@ -35,7 +35,7 @@ module Jammit
       Jammit.package_assets
     end
 
-    # By default returns the host of Amazon bucket, or, if configured,
+    # Returns a Proc that by default returns Amazon bucket, or, if configured,
     # the value of cloudfront_domain property from config/assets.yml.
     # Returned value is set directly to config.action_controller.asset_host.
     # For more complex needs set the value of config.action_controller.asset_host
@@ -69,11 +69,17 @@ module Jammit
       end
     end
 
+    def asset_path_proc
+      Proc.new do |source|
+        versioned_path(source)
+      end
+    end
+
     # Called from a proc attached to config.action_controller.asset_path,
     # from monkey-patched Jammit::Compressor and from S3Uploader
     # to calculate asset paths
     def versioned_path(path, version_relative_paths=false)
-      return path unless self.version_assets?
+      return path unless self.use_versioned_assets?
       return path if path.empty? || (Pathname.new(path).relative? && !version_relative_paths)
       version = assets_version
       return path if version.nil? || version.empty?
@@ -109,7 +115,7 @@ class Jammit::Compressor
   alias old_rewrite_asset_path rewrite_asset_path
 
   def rewrite_asset_path(path, file_path)
-    if Helper.version_assets?
+    if Helper.use_versioned_assets?
       versioned_path = Helper.versioned_path(path)
       # make sure devs see what's being changed
       puts "Rewriting #{path} as #{versioned_path}" unless path == versioned_path

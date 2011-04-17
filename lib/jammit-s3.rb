@@ -24,10 +24,8 @@ module Jammit
         if self.use_s3_asset_host?
           config.action_controller.asset_host = self.asset_host_proc
         end
-        if self.version_assets?
-          config.action_controller.asset_path = Proc.new do |source|
-            self.versioned_path(source)
-          end
+        if self.use_versioned_assets?
+          config.action_controller.asset_path = self.asset_path_proc
         end
       end
     end

@@ -7,7 +7,7 @@ describe TestS3AssetsVersioning do
   describe "versioned_path method" do
     describe "when assets versioning disabled" do
       before do
-        subject.stub!(:version_assets?).and_return(false)
+        subject.stub!(:use_versioned_assets?).and_return(false)
         subject.should_not_receive(:assets_version)
       end
 
@@ -27,7 +27,7 @@ describe TestS3AssetsVersioning do
 
     describe "when assets versioning enabled and no assets_version defined" do
       before do
-        subject.stub!(:version_assets?).and_return(true)
+        subject.stub!(:use_versioned_assets?).and_return(true)
         subject.stub!(:assets_version).and_return('')
       end
 
@@ -47,7 +47,7 @@ describe TestS3AssetsVersioning do
 
     describe "when assets versioning enabled and assets_version defined" do
       before do
-        subject.stub!(:version_assets?).and_return(true)
+        subject.stub!(:use_versioned_assets?).and_return(true)
         subject.stub!(:assets_version).and_return('v1')
       end
 
