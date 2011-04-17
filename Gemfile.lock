@@ -1,12 +1,8 @@
 PATH
   remote: .
   specs:
-<<<<<<< HEAD
-    jammit-s3 (0.5.4.3)
-      aws-s3 (>= 0.6.2)
-=======
     jammit-s3 (0.6.0.2)
->>>>>>> invalidation
+      aws-s3 (>= 0.6.2)
       jammit (>= 0.5.4)
       mimemagic (>= 0.1.7)
 
@@ -63,11 +59,8 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-<<<<<<< HEAD
   aws-s3 (>= 0.6.2)
   jammit (>= 0.5.4)
-=======
->>>>>>> invalidation
   jammit-s3!
   rake
   rspec (>= 2.0.0.beta)
