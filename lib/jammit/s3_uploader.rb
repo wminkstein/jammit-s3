@@ -1,4 +1,10 @@
+require 'rubygems'
+require 'hmac'
+require 'hmac-sha1'
+require 'net/https'
+require 'base64'
 require 'mimemagic'
+require 'digest/md5'
 
 module Jammit
   class S3Uploader
@@ -17,6 +23,10 @@ module Jammit
         @acl = options[:acl] || Jammit.configuration[:s3_permission] || :public_read
 
         @bucket = find_or_create_bucket
+        if Jammit.configuration[:use_cloudfront]
+          @changed_files = []
+          @cloudfront_dist_id = options[:cloudfront_dist_id] || Jammit.configuration[:cloudfront_dist_id]
+        end
       end
     end
 
@@ -33,7 +43,7 @@ module Jammit
       end
 
       # add images
-      globs << "public/images/**/*"
+      globs << "public/images/**/*" unless Jammit.configuration[:s3_upload_images] == false
 
       # add custom configuration if defined
       s3_upload_files = Jammit.configuration[:s3_upload_files]
@@ -43,6 +53,11 @@ module Jammit
       # upload all the globs
       globs.each do |glob|
         upload_from_glob(glob)
+      end
+
+      if Jammit.configuration[:use_cloudfront] && !@changed_files.empty?
+        log "invalidating cloudfront cache for changed files"
+        invalidate_cache(@changed_files)
       end
     end
 
@@ -61,7 +76,15 @@ module Jammit
           use_gzip = true
           remote_path = remote_path.gsub(/\.gz$/, "")
         end
+        
+        # check if the file already exists on s3
+        begin
+          obj = @bucket.objects.find_first(remote_path)
+        rescue
+          obj = nil
+        end
 
+<<<<<<< HEAD
         remote_path = versioned_path(remote_path, true)
 
         log "pushing file to s3: #{local_path}=>#{remote_path}"
@@ -77,6 +100,29 @@ module Jammit
         new_object.store(metadata)
         new_object.acl.grants << ACL::Grant.grant(@acl.to_sym)
         new_object.acl(new_object.acl)
+=======
+        # if the object does not exist, or if the MD5 Hash / etag of the 
+        # file has changed, upload it
+        if !obj || (obj.etag != Digest::MD5.hexdigest(File.read(local_path)))
+
+          # save to s3
+          new_object = @bucket.objects.build(remote_path)
+          new_object.cache_control = @cache_control if @cache_control
+          new_object.content_type = MimeMagic.by_path(remote_path)
+          new_object.content = open(local_path)
+          new_object.content_encoding = "gzip" if use_gzip
+          new_object.acl = @acl if @acl
+          log "pushing file to s3: #{remote_path}"
+          new_object.save
+
+          if Jammit.configuration[:use_cloudfront] && obj
+            log "File changed and will be invalidated in cloudfront: #{remote_path}"
+            @changed_files << remote_path
+          end
+        else
+          log "file has not changed: #{remote_path}"
+        end
+>>>>>>> invalidation
       end
     end
 
@@ -90,6 +136,45 @@ module Jammit
         log "Bucket not found. Creating '#{@bucket_name}'..."
         Bucket.create(@bucket_name, :access => @acl.to_sym)
         Bucket.find(@bucket_name)
+      end
+    end
+    
+    def invalidate_cache(files)
+      paths = ""
+      files.each do |key|
+        log "adding /#{key} to list of invalidation requests"
+        paths += "<Path>/#{key}</Path>"
+      end
+      digest = HMAC::SHA1.new(@secret_access_key)
+      digest << date = Time.now.utc.strftime("%a, %d %b %Y %H:%M:%S %Z")
+      uri = URI.parse("https://cloudfront.amazonaws.com/2010-11-01/distribution/#{@cloudfront_dist_id}/invalidation")
+      req = Net::HTTP::Post.new(uri.path)
+      req.initialize_http_header({
+        'x-amz-date' => date,
+        'Content-Type' => 'text/xml',
+        'Authorization' => "AWS %s:%s" % [@access_key_id, Base64.encode64(digest.digest).gsub("\n", '')]
+      })
+      req.body = "<InvalidationBatch>#{paths}<CallerReference>#{@cloudfront_dist_id}_#{Time.now.utc.to_i}</CallerReference></InvalidationBatch>"
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      res = http.request(req)
+      log result_message(req, res)
+    end
+
+    def result_message req, res
+      if res.code == "201"
+        'Invalidation request succeeded'
+      else
+        <<-EOM.gsub(/^\s*/, '')
+        =============================
+        Failed with #{res.code} error!
+        Request path:#{req.path}
+        Request header: #{req.to_hash}
+        Request body:#{req.body}
+        Response body: #{res.body}
+        =============================
+        EOM
       end
     end
 

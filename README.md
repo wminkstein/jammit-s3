@@ -80,6 +80,7 @@ Valid permission options are:
 
 ## Using CloudFront
 
+<<<<<<< HEAD
 For this to work you need to make sure you have the CloudFront enabled 
 via you Amazon acccount page. Go here: http://aws.amazon.com/cloudfront/ and click "Sign Up"
 
@@ -89,6 +90,19 @@ technique of appending a query string to each asset url. So when you
 roll out a new build with that new amazing logo, CloudFront will treat
 the url path /logo.png?123456 and /logo.png?56789 as the same file and
 serve it from the cache without re-fetching it from the origin server.
+=======
+For this to work you need to make sure you have the CloudFront enabled via you Amazon acccount page. Go here: http://aws.amazon.com/cloudfront/ and click "Sign Up"
+
+To use CloudFront, simply add the following settings to config/assets.yml:
+
+    use_cloudfront: on
+    cloudfront_dist_id: XXXXXXXXXXXXXX
+    cloudfront_domain: xyzxyxyz.cloudfront.net
+
+Please note that cloudfront_dist_id is not the same as the CloudFront domain
+name. Inside CloudFront management console select the
+distribution, and you will see Distribution ID and Domain Name values.
+>>>>>>> invalidation
 
 To work around this issue, Jammit-s3 inserts a cache busting token right
 in the asset path, causing browsers and cacheing proxies to refetch it
@@ -98,6 +112,7 @@ of the paths, e.g. =image_tag "logo.png" will generate an image tag with
 href to http://xxxxx.cloudfront.net/a4f2c23/logo.png, where a4f2c23 is
 the value of ENV['RAILS_ASSET_ID'] on your application server.
 
+<<<<<<< HEAD
 It is up to you to come up with a strategy which value to use as
 RAILS_ASSET_ID, the git commit hash seems like a good option, but
 anything relatively unique, like a timestamp will do.
@@ -163,6 +178,26 @@ assets.yml:
 
 This will cause Cache-Control response header to be set to 1 year
 expiration.
+=======
+### Known issues with CloudFront invalidation
+
+1. It may reportedly take up to 15 minutes to invalidate all the CloudFront
+caches around the globe (and Amazon charges for more than a certain number
+of invalidations per month).
+
+2. It's non-atomic from the perspective of the end-user: They may get an
+older version of the site with a newer version of the JavaScript and CSS, or
+vice versa.
+
+3. It doesn't play nicely with aggressive HTTP caching. For example, once I
+serve a script or a stylesheet, I would like it to be cached indefinitely
+with no more round trips to see whether it is valid.
+
+Given these constraints, there's still an important need for some kind of
+content-based hashing. Done right, this assures that all files can be cached
+indefinitely, and the user will always get matched HTML/JS/CSS files. (This currently
+is in the works).
+>>>>>>> invalidation
 
 ## Bugs / Feature Requests
 

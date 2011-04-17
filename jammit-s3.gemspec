@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name      = 'jammit-s3'
-  s.version   = '0.5.4.3'
+  s.version   = '0.6.0.2'
 
   s.homepage    = "http://documentcloud.github.com/jammit/"
   s.summary     = "Asset Packaging for Rails with Deployment to S3/Cloudfront"
@@ -17,7 +17,12 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'jammit',    '~> 0.6.0'
   s.add_dependency 'mimemagic',  '>= 0.1.7'
+<<<<<<< HEAD
   s.add_dependency 'aws-s3', ">= 0.6.2"
+=======
+  s.add_dependency 's3', ">= 0.3.7"
+  s.add_dependency 'ruby-hmac'
+>>>>>>> invalidation
 
   s.files = Dir['lib/**/*', 'bin/*', 'jammit-s3.gemspec', 'LICENSE', 'README']
 end
