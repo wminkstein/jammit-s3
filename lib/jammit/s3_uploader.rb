@@ -106,7 +106,6 @@ module Jammit
       new_object = @bucket.objects.build(remote_path)
       new_object.cache_control = @cache_control if @cache_control
       new_object.content_type = MimeMagic.by_path(remote_path)
-      new_object.etag = Digest::MD5.hexdigest(File.read(local_path))
       new_object.content = open(local_path)
       new_object.content_encoding = "gzip" if use_gzip
       new_object.acl = @acl if @acl
