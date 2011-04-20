@@ -179,6 +179,14 @@ For example on heroku.com run:
 
     $ heroku config:add RAILS_ASSET_ID=20110120051234
 
+There is a convenience rake task the streamlines this provess:
+
+    $ rake jammit:s3:heroku
+    or
+    $ rake jammit:s3:heroku[myapp]
+
+This task will use last git commit as the value of RAILS_ASSET_ID, upload all assets to S3, and set heroku variable.
+
 #### Pros and Cons for asset versioning
 
 Pro: It assures that all files will match up, and the user will always get matched HTML/JS/CSS files.
