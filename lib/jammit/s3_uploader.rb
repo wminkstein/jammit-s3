@@ -19,7 +19,7 @@ module Jammit
         @secret_access_key = options[:secret_access_key] || Jammit.configuration[:s3_secret_access_key]
         @bucket_location = options[:bucket_location] || Jammit.configuration[:s3_bucket_location]
         @cache_control = options[:cache_control] || Jammit.configuration[:s3_cache_control]
-        @expires = options[:expires] || Jammit.configuration[:s3_expires] # TODO: use this expire header
+        @expires = options[:expires] || Jammit.configuration[:s3_expires]
         @acl = options[:acl] || Jammit.configuration[:s3_permission] || :public_read
 
         @bucket = find_or_create_bucket
@@ -60,7 +60,6 @@ module Jammit
 
     def upload_from_glob(glob)
       log "Pushing files from #{glob}"
-      log "#{ASSET_ROOT}/#{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
         # note: remote path should be relative
@@ -80,7 +79,7 @@ module Jammit
         else # selectively upload files if local version is different
           # check if the file already exists on s3
           begin
-            obj = @bucket.objects.find_first(remote_path)
+            obj = @bucket[remote_path]
           rescue
             obj = nil
           end
@@ -104,14 +103,16 @@ module Jammit
 
     def upload_file(local_path, remote_path, use_gzip)
       # save to s3
-      new_object = @bucket.objects.build(remote_path)
-      new_object.cache_control = @cache_control if @cache_control
-      new_object.content_type = MimeMagic.by_path(remote_path)
-      new_object.content = open(local_path)
-      new_object.content_encoding = "gzip" if use_gzip
-      new_object.acl = @acl if @acl
       log "pushing file to s3: #{local_path}=>#{remote_path}"
-      new_object.save
+      new_object, options = @bucket.new_object, {}
+      new_object.key = remote_path
+      new_object.value = open(local_path)
+      options[:cache_control] = @cache_control if @cache_control
+      options[:content_type] = MimeMagic.by_path(remote_path)
+      options[:content_encoding] = "gzip" if use_gzip
+      options[:expires] = @expires if @expires
+      options[:access] = @acl if @acl
+      new_object.store(options)
     end
 
     def find_or_create_bucket
