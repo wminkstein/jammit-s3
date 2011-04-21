@@ -8,6 +8,7 @@ require 'digest/md5'
 
 module Jammit
   class S3Uploader
+    include AWS::S3
     include Jammit::S3AssetsVersioning
 
     def initialize(options = { })
@@ -18,7 +19,8 @@ module Jammit
         @secret_access_key = options[:secret_access_key] || Jammit.configuration[:s3_secret_access_key]
         @bucket_location = options[:bucket_location] || Jammit.configuration[:s3_bucket_location]
         @cache_control = options[:cache_control] || Jammit.configuration[:s3_cache_control]
-        @acl = options[:acl] || Jammit.configuration[:s3_permission]
+        @expires = options[:expires] || Jammit.configuration[:s3_expires] # TODO: use this expire header
+        @acl = options[:acl] || Jammit.configuration[:s3_permission] || :public_read
 
         @bucket = find_or_create_bucket
         if use_invalidation?
@@ -102,29 +104,26 @@ module Jammit
 
     def upload_file(local_path, remote_path, use_gzip)
       # save to s3
-      log "pushing file to s3: #{local_path}=>#{remote_path}"
       new_object = @bucket.objects.build(remote_path)
       new_object.cache_control = @cache_control if @cache_control
       new_object.content_type = MimeMagic.by_path(remote_path)
       new_object.content = open(local_path)
       new_object.content_encoding = "gzip" if use_gzip
       new_object.acl = @acl if @acl
+      log "pushing file to s3: #{local_path}=>#{remote_path}"
       new_object.save
     end
 
     def find_or_create_bucket
-      s3_service = S3::Service.new(:access_key_id => @access_key_id, :secret_access_key => @secret_access_key)
+      AWS::S3::Base.establish_connection!(:access_key_id => @access_key_id, :secret_access_key => @secret_access_key)
 
       # find or create the bucket
       begin
-        s3_service.buckets.find(@bucket_name)
-      rescue S3::Error::NoSuchBucket
+        Bucket.find(@bucket_name)
+      rescue AWS::S3::NoSuchBucket
         log "Bucket not found. Creating '#{@bucket_name}'..."
-        bucket = s3_service.buckets.build(@bucket_name)
-
-        location = (@bucket_location.to_s.strip.downcase == "eu") ? :eu : :us
-        bucket.save(location)
-        bucket
+        Bucket.create(@bucket_name, :access => @acl.to_sym)
+        Bucket.find(@bucket_name)
       end
     end
 
