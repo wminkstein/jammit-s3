@@ -30,6 +30,8 @@ module Jammit
 
     def upload
       log "Pushing assets to S3 bucket: #{@bucket.name}"
+      log "Using invalidation method" if use_invalidation?
+      log "Using versioned assets method with version #{assets_version}" if use_versioned_assets?
       globs = []
 
       # add default package path
@@ -57,8 +59,7 @@ module Jammit
     end
 
     def upload_from_glob(glob)
-      log "Pushing files from #{glob}"
-      log "#{ASSET_ROOT}/#{glob}"
+      log "Processing files from #{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
         # note: remote path should be relative
@@ -102,7 +103,7 @@ module Jammit
 
     def upload_file(local_path, remote_path, use_gzip)
       # save to s3
-      log "pushing file to s3: #{local_path}=>#{remote_path}"
+      log "#{local_path.gsub(/^#{ASSET_ROOT}\/public\//, "")} => #{remote_path}"
       new_object = @bucket.objects.build(remote_path)
       new_object.cache_control = @cache_control if @cache_control
       new_object.content_type = MimeMagic.by_path(remote_path)
@@ -130,10 +131,9 @@ module Jammit
 
     def invalidate_cache(files)
       return if files.empty?
-      log "invalidating cloudfront cache for changed files"
+      log "invalidating cloudfront cache for changed files: #{files.join(', ')}"
       paths = ""
       files.each do |key|
-        log "adding /#{key} to list of invalidation requests"
         paths += "<Path>/#{key}</Path>"
       end
       digest = HMAC::SHA1.new(@secret_access_key)
