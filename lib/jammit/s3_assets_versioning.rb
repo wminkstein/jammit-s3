@@ -63,10 +63,10 @@ module Jammit
         if Jammit.configuration.has_key?(:ssl)
           protocol = Jammit.configuration[:ssl] ? "https://" : "http://"
         else
-          protocol = request.protocol
+          protocol = "https://"
         end
 
-        if request.protocol == "https://"
+        if request.ssl?
           "#{protocol}#{asset_hostname_ssl}"
         else
           if asset_hostname.is_a?(Array)
