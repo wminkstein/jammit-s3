@@ -60,9 +60,6 @@ module Jammit
       end
 
       Proc.new do |source, request|
-        img = %w(.png .jpg .gif .jpeg)
-        ext = File.extname(source).split("?")[0]
-
         if Jammit.configuration.has_key?(:ssl)
           protocol = Jammit.configuration[:ssl] ? "https://" : "http://"
         else
