@@ -154,7 +154,7 @@ To configure asset versioning with a single CNAME, simple add the following sett
 
     cloudfront_cname: static.yourdomain.com # <- this is optional, and CF distribution needs to be configured for CNAMEs
 
-Although if you would like you use multiple CNAME's you have two options that you can set in the config/assets.yml:
+Although if you would like you use multiple CNAME's you can set the following in the config/assets.yml:
 
     cloudfront_cname:
       - static1.yourdomain.com
