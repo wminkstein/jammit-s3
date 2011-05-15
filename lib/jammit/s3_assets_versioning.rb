@@ -60,15 +60,34 @@ module Jammit
       end
 
       Proc.new do |source, request|
+        img = %w(.png .jpg .gif .jpeg)
+        ext = File.extname(source).split("?")[0]
+
         if Jammit.configuration.has_key?(:ssl)
           protocol = Jammit.configuration[:ssl] ? "https://" : "http://"
         else
           protocol = request.protocol
         end
+
         if request.protocol == "https://"
           "#{protocol}#{asset_hostname_ssl}"
         else
-          "#{protocol}#{asset_hostname}"
+          if asset_hostname.is_a?(Hash)
+            if img.include?(ext) && asset_hostname[:images].present?
+              "#{protocol}#{asset_hostname[:images]}"
+            elsif ext == '.js' && asset_hostname[:javascripts].present?
+              "#{protocol}#{asset_hostname[:javascripts]}"
+            elsif ext == '.css' && asset_hostname[:stylesheets].present?
+              "#{protocol}#{asset_hostname[:stylesheets]}"
+            elsif asset_hostname[:other].present?
+              "#{protocol}#{asset_hostname[:other]}"
+            else
+              i = rand(asset_hostname.size)
+              "#{protocol}#{asset_hostname[i]}"
+            end
+          else
+            "#{protocol}#{asset_hostname}"
+          end
         end
       end
     end
