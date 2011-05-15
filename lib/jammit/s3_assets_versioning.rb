@@ -73,7 +73,7 @@ module Jammit
           "#{protocol}#{asset_hostname_ssl}"
         else
           if asset_hostname.is_a?(Array)
-            i = source.hash % asset_hostname.size + 1
+            i = source.hash % asset_hostname.size
             "#{protocol}#{asset_hostname[i]}"
           else
             "#{protocol}#{asset_hostname}"
