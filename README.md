@@ -157,20 +157,11 @@ To configure asset versioning with a single CNAME, simple add the following sett
 Although if you would like you use multiple CNAME's you have two options that you can set in the config/assets.yml:
 
     cloudfront_cname:
-      images: images.yourdomain.com
-      javascripts: javascripts.yourdomain.com
-      stylesheets: stylesheets.yourdomain.com
-      other: stylesheets.yourdomain.com
-
-When configured, this way, your assets are distributed, based on the file extension
-serving images, javascripts, stylesheets, and any other assets from there own subdomain.
-
-    cloudfront_cname:
       - static1.yourdomain.com
       - static2.yourdomain.com
       - static3.yourdomain.com
 
-When configured, this way, your assets are distributed, at random from all of the CNAME's
+When configured this way, your assets are distributed, by source.hash number for all your assets spanning all of the CNAME's
 provided.
 
 #### Deployment

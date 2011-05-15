@@ -72,19 +72,9 @@ module Jammit
         if request.protocol == "https://"
           "#{protocol}#{asset_hostname_ssl}"
         else
-          if asset_hostname.is_a?(Hash)
-            if img.include?(ext) && asset_hostname[:images].present?
-              "#{protocol}#{asset_hostname[:images]}"
-            elsif ext == '.js' && asset_hostname[:javascripts].present?
-              "#{protocol}#{asset_hostname[:javascripts]}"
-            elsif ext == '.css' && asset_hostname[:stylesheets].present?
-              "#{protocol}#{asset_hostname[:stylesheets]}"
-            elsif asset_hostname[:other].present?
-              "#{protocol}#{asset_hostname[:other]}"
-            else
-              i = rand(asset_hostname.size)
-              "#{protocol}#{asset_hostname[i]}"
-            end
+          if asset_hostname.is_a?(Array)
+            i = source.hash % asset_hostname.size
+            "#{protocol}#{asset_hostname[i]}"
           else
             "#{protocol}#{asset_hostname}"
           end
