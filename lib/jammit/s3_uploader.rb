@@ -63,7 +63,7 @@ module Jammit
       log "#{ASSET_ROOT}/#{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
-        remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\//, "#{@package_path}")
+        remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\//, "#{@package_path}/")
 
         use_gzip = false
 
