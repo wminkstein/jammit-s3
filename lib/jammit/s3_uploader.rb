@@ -5,6 +5,7 @@ require 'net/https'
 require 'base64'
 require 'mimemagic'
 require 'digest/md5'
+require 'rake'
 
 module Jammit
   class S3Uploader
@@ -46,15 +47,15 @@ module Jammit
       end
 
       # add images
-      #globs << "public/images/**/*" unless Jammit.configuration[:s3_upload_images] == false
+      globs << "public/images/**/*" unless Jammit.configuration[:s3_upload_images] == false
       
-      globs << FileList.new("public/images/**/*") do |fl|
-        unless(Jammit.configuration[:s3_upload_embedded_images] == false)
-          fl.exclude(/embed/)
-        else
-          fl unless Jammit.configuration[:s3_upload_images] == false
-        end
-      end
+      # globs << FileList.new("public/images/**/*") do |fl|
+      #         unless(Jammit.configuration[:s3_upload_embedded_images] == false)
+      #           fl.exclude(/\/embed\//)
+      #         else
+      #           fl.to_s unless Jammit.configuration[:s3_upload_images] == false
+      #         end
+      #       end
         
       # add custom configuration if defined
       s3_upload_files = Jammit.configuration[:s3_upload_files]
@@ -73,6 +74,7 @@ module Jammit
       log "Processing files from #{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
+        next if Jammit.configuration[:s3_upload_embedded_images] == false && local_path.match(/\/embed\//)
         remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\/(#{@package_path}\/)?/, "#{@package_path}/")
 
         use_gzip = false
