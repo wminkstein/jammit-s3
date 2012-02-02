@@ -46,8 +46,16 @@ module Jammit
       end
 
       # add images
-      globs << "public/images/**/*" unless Jammit.configuration[:s3_upload_images] == false
-
+      #globs << "public/images/**/*" unless Jammit.configuration[:s3_upload_images] == false
+      
+      globs << FileList.new("public/images/**/*") do |fl|
+        unless(Jammit.configuration[:s3_upload_embedded_images] == false)
+          fl.exclude(/embed/)
+        else
+          fl unless Jammit.configuration[:s3_upload_images] == false
+        end
+      end
+        
       # add custom configuration if defined
       s3_upload_files = Jammit.configuration[:s3_upload_files]
       globs << s3_upload_files if s3_upload_files.is_a?(String)
