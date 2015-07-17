@@ -8,7 +8,7 @@ module Jammit
   end
 end
 
-if defined?(Rails)
+if defined?(Rails) && !Rails.env.development? && !Rails.env.remote_dev?
   module Jammit
     class JammitRailtie < Rails::Railtie
       initializer "set asset host and asset id" do
